@@ -35,6 +35,21 @@ const DEFAULT_FEATURES = [
   // P1: API-dependent features
   "EXTRACT_MEMORIES", "VERIFICATION_AGENT",
   "KAIROS_BRIEF", "AWAY_SUMMARY", "ULTRAPLAN",
+  // P2: daemon + remote control server
+  "DAEMON",
+  // PR-package restored features
+  "WORKFLOW_SCRIPTS",
+  "HISTORY_SNIP",
+  "CONTEXT_COLLAPSE",
+  "MONITOR_TOOL",
+  "FORK_SUBAGENT",
+  "UDS_INBOX",
+  "KAIROS",
+  "COORDINATOR_MODE",
+  "LAN_PIPES",
+  // "REVIEW_ARTIFACT", // API 请求无响应，需进一步排查 schema 兼容性
+  // P3: poor mode (disable extract_memories + prompt_suggestion)
+  "POOR",
 ];
 
 // Any env var matching FEATURE_<NAME>=1 will also enable that feature.

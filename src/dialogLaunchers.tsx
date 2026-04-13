@@ -87,7 +87,7 @@ export async function launchAssistantSessionChooser(
   return showSetupDialog<string | null>(root, done => (
     <AssistantSessionChooser
       sessions={props.sessions}
-      onSelect={id => done(id)}
+      onSelect={(id: string) => done(id)}
       onCancel={() => done(null)}
     />
   ))
@@ -168,7 +168,7 @@ export async function launchTeleportRepoMismatchDialog(
 
 /**
  * Site ~4903: ResumeConversation mount (interactive session picker).
- * Uses renderAndRun, NOT showSetupDialog. Wraps in <App><KeybindingSetup>.
+ * Wraps in <App><KeybindingSetup> and uses renderAndRun.
  * Preserves original Promise.all parallelism between getWorktreePaths and imports.
  */
 export async function launchResumeChooser(
