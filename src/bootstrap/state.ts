@@ -8,7 +8,7 @@ import { realpathSync } from 'fs'
 import sumBy from 'lodash-es/sumBy.js'
 import { cwd } from 'process'
 import type { HookEvent, ModelUsage } from 'src/entrypoints/agentSdkTypes.js'
-import type { AgentColorName } from 'src/tools/AgentTool/agentColorManager.js'
+import type { AgentColorName } from '@claude-code-best/builtin-tools/tools/AgentTool/agentColorManager.js'
 import type { HookCallbackMatcher } from 'src/types/hooks.js'
 // Indirection for browser-sdk build (package.json "browser" field swaps
 // crypto.ts for crypto.browser.ts). Pure leaf re-export of node:crypto —
@@ -235,11 +235,6 @@ type State = {
   // microcompact is first enabled, keep sending the header so mid-session
   // GrowthBook/settings toggles don't bust the prompt cache.
   cacheEditingHeaderLatched: boolean | null
-  // Sticky-on latch for clearing thinking from prior tool loops. Triggered
-  // when >1h since last API call (confirmed cache miss — no cache-hit
-  // benefit to keeping thinking). Once latched, stays on so the newly-warmed
-  // thinking-cleared cache isn't busted by flipping back to keep:'all'.
-  thinkingClearLatched: boolean | null
   // Current prompt ID (UUID) correlating a user prompt with subsequent OTel events
   promptId: string | null
   // Last API requestId for the main conversation chain (not subagents).
@@ -414,7 +409,6 @@ function getInitialState(): State {
     afkModeHeaderLatched: null,
     fastModeHeaderLatched: null,
     cacheEditingHeaderLatched: null,
-    thinkingClearLatched: null,
     // Current prompt ID
     promptId: null,
     lastMainRequestId: undefined,
@@ -1729,14 +1723,6 @@ export function setCacheEditingHeaderLatched(v: boolean): void {
   STATE.cacheEditingHeaderLatched = v
 }
 
-export function getThinkingClearLatched(): boolean | null {
-  return STATE.thinkingClearLatched
-}
-
-export function setThinkingClearLatched(v: boolean): void {
-  STATE.thinkingClearLatched = v
-}
-
 /**
  * Reset beta header latches to null. Called on /clear and /compact so a
  * fresh conversation gets fresh header evaluation.
@@ -1745,7 +1731,6 @@ export function clearBetaHeaderLatches(): void {
   STATE.afkModeHeaderLatched = null
   STATE.fastModeHeaderLatched = null
   STATE.cacheEditingHeaderLatched = null
-  STATE.thinkingClearLatched = null
 }
 
 export function getPromptId(): string | null {

@@ -18,7 +18,7 @@ import type {
   NormalizedUserMessage,
 } from '../types/message.js'
 import { PERMISSION_MODES } from '../types/permissions.js'
-import { suppressNextSkillListing } from './attachments.js'
+import { suppressNextSkillDiscovery, suppressNextSkillListing } from './attachments.js'
 import {
   copyFileHistoryForResume,
   type FileHistorySnapshot,
@@ -55,18 +55,18 @@ import type { ContentReplacementRecord } from './toolResultStorage.js'
 const BRIEF_TOOL_NAME: string | null =
   feature('KAIROS') || feature('KAIROS_BRIEF')
     ? (
-        require('../tools/BriefTool/prompt.js') as typeof import('../tools/BriefTool/prompt.js')
+        require('@claude-code-best/builtin-tools/tools/BriefTool/prompt.js') as typeof import('@claude-code-best/builtin-tools/tools/BriefTool/prompt.js')
       ).BRIEF_TOOL_NAME
     : null
 const LEGACY_BRIEF_TOOL_NAME: string | null =
   feature('KAIROS') || feature('KAIROS_BRIEF')
     ? (
-        require('../tools/BriefTool/prompt.js') as typeof import('../tools/BriefTool/prompt.js')
+        require('@claude-code-best/builtin-tools/tools/BriefTool/prompt.js') as typeof import('@claude-code-best/builtin-tools/tools/BriefTool/prompt.js')
       ).LEGACY_BRIEF_TOOL_NAME
     : null
 const SEND_USER_FILE_TOOL_NAME: string | null = feature('KAIROS')
   ? (
-      require('../tools/SendUserFileTool/prompt.js') as typeof import('../tools/SendUserFileTool/prompt.js')
+      require('@claude-code-best/builtin-tools/tools/SendUserFileTool/prompt.js') as typeof import('@claude-code-best/builtin-tools/tools/SendUserFileTool/prompt.js')
     ).SEND_USER_FILE_TOOL_NAME
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */
@@ -403,6 +403,16 @@ export function restoreSkillStateFromMessages(messages: Message[]): void {
       suppressNextSkillListing()
     }
   }
+
+  // Unconditionally suppress skill_listing and skill_discovery on resume.
+  // Attachments are not persisted to transcript for non-ant users
+  // (isLoggableMessage filters them out), so the per-type checks above may
+  // never find them even though the prior process already injected the content
+  // into the conversation via <system-reminder> blocks. Without this, every
+  // resume re-injects ~1K tokens of duplicate content and busts the Anthropic
+  // prompt cache prefix (which requires 100% byte-identical segments).
+  suppressNextSkillListing()
+  suppressNextSkillDiscovery()
 }
 
 /**

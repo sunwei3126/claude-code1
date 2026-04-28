@@ -104,21 +104,21 @@ import type {
   HookEvent,
   SDKAssistantMessageError,
 } from 'src/entrypoints/agentSdkTypes.js'
-import { EXPLORE_AGENT } from 'src/tools/AgentTool/built-in/exploreAgent.js'
-import { PLAN_AGENT } from 'src/tools/AgentTool/built-in/planAgent.js'
-import { areExplorePlanAgentsEnabled } from 'src/tools/AgentTool/builtInAgents.js'
-import { AGENT_TOOL_NAME } from 'src/tools/AgentTool/constants.js'
-import { ASK_USER_QUESTION_TOOL_NAME } from 'src/tools/AskUserQuestionTool/prompt.js'
-import { BashTool } from 'src/tools/BashTool/BashTool.js'
-import { ExitPlanModeV2Tool } from 'src/tools/ExitPlanModeTool/ExitPlanModeV2Tool.js'
-import { FileEditTool } from 'src/tools/FileEditTool/FileEditTool.js'
+import { EXPLORE_AGENT } from '@claude-code-best/builtin-tools/tools/AgentTool/built-in/exploreAgent.js'
+import { PLAN_AGENT } from '@claude-code-best/builtin-tools/tools/AgentTool/built-in/planAgent.js'
+import { areExplorePlanAgentsEnabled } from '@claude-code-best/builtin-tools/tools/AgentTool/builtInAgents.js'
+import { AGENT_TOOL_NAME } from '@claude-code-best/builtin-tools/tools/AgentTool/constants.js'
+import { ASK_USER_QUESTION_TOOL_NAME } from '@claude-code-best/builtin-tools/tools/AskUserQuestionTool/prompt.js'
+import { BashTool } from '@claude-code-best/builtin-tools/tools/BashTool/BashTool.js'
+import { ExitPlanModeV2Tool } from '@claude-code-best/builtin-tools/tools/ExitPlanModeTool/ExitPlanModeV2Tool.js'
+import { FileEditTool } from '@claude-code-best/builtin-tools/tools/FileEditTool/FileEditTool.js'
 import {
   FILE_READ_TOOL_NAME,
   MAX_LINES_TO_READ,
-} from 'src/tools/FileReadTool/prompt.js'
-import { FileWriteTool } from 'src/tools/FileWriteTool/FileWriteTool.js'
-import { GLOB_TOOL_NAME } from 'src/tools/GlobTool/prompt.js'
-import { GREP_TOOL_NAME } from 'src/tools/GrepTool/prompt.js'
+} from '@claude-code-best/builtin-tools/tools/FileReadTool/prompt.js'
+import { FileWriteTool } from '@claude-code-best/builtin-tools/tools/FileWriteTool/FileWriteTool.js'
+import { GLOB_TOOL_NAME } from '@claude-code-best/builtin-tools/tools/GlobTool/prompt.js'
+import { GREP_TOOL_NAME } from '@claude-code-best/builtin-tools/tools/GrepTool/prompt.js'
 import type { DeepImmutable } from 'src/types/utils.js'
 import { getStrictToolResultPairing } from '../bootstrap/state.js'
 import type { SpinnerMode } from '../components/Spinner.js'
@@ -139,11 +139,11 @@ import {
 import {
   FileReadTool,
   type Output as FileReadToolOutput,
-} from '../tools/FileReadTool/FileReadTool.js'
-import { SEND_MESSAGE_TOOL_NAME } from '../tools/SendMessageTool/constants.js'
-import { TASK_CREATE_TOOL_NAME } from '../tools/TaskCreateTool/constants.js'
-import { TASK_OUTPUT_TOOL_NAME } from '../tools/TaskOutputTool/constants.js'
-import { TASK_UPDATE_TOOL_NAME } from '../tools/TaskUpdateTool/constants.js'
+} from '@claude-code-best/builtin-tools/tools/FileReadTool/FileReadTool.js'
+import { SEND_MESSAGE_TOOL_NAME } from '@claude-code-best/builtin-tools/tools/SendMessageTool/constants.js'
+import { TASK_CREATE_TOOL_NAME } from '@claude-code-best/builtin-tools/tools/TaskCreateTool/constants.js'
+import { TASK_OUTPUT_TOOL_NAME } from '@claude-code-best/builtin-tools/tools/TaskOutputTool/constants.js'
+import { TASK_UPDATE_TOOL_NAME } from '@claude-code-best/builtin-tools/tools/TaskUpdateTool/constants.js'
 import type { PermissionMode } from '../types/permissions.js'
 import { normalizeToolInput, normalizeToolInputForAPI } from './api.js'
 import { getCurrentProjectConfig } from './config.js'
@@ -958,7 +958,6 @@ export function reorderMessagesInUI(
         })
       }
       toolUseGroups.get(toolUseID)!.postHooks.push(message)
-      continue
     }
   }
 
@@ -2293,7 +2292,6 @@ export function normalizeMessagesForAPI(
                 result[i] = mergeAssistantMessages(msg, normalizedMessage)
                 return
               }
-              continue
             }
           }
 
@@ -3555,14 +3553,40 @@ Read the team config to discover your teammates' names. Check the task list peri
   // be gated, but this pattern can — same approach as teammate_mailbox above.
   if (feature('EXPERIMENTAL_SKILL_SEARCH')) {
     if (attachment.type === 'skill_discovery') {
-      if (attachment.skills.length === 0) return []
-      const lines = attachment.skills.map(s => `- ${s.name}: ${s.description}`)
+      if (attachment.skills.length === 0 && !attachment.gap) return []
+      const loaded = attachment.skills.filter(s => s.autoLoaded && s.content)
+      const recommended = attachment.skills.filter(s => !s.autoLoaded)
+      const loadedSections = loaded.map(
+        s =>
+          `<${COMMAND_NAME_TAG}>${s.name}</${COMMAND_NAME_TAG}>\n` +
+          `<loaded-skill name="${s.name}" path="${s.path ?? ''}">\n${s.content}\n</loaded-skill>`,
+      )
+      const recommendationLines = recommended.map(
+        s => `- ${s.name}: ${s.description}`,
+      )
+      const gapText = attachment.gap
+        ? [
+            'No high-confidence active skill was auto-loaded for this request.',
+            attachment.gap.activePath
+              ? `A learned skill was promoted for future turns: ${attachment.gap.activeName} (${attachment.gap.activePath}).`
+              : attachment.gap.draftPath
+                ? `A draft learned skill candidate was created: ${attachment.gap.draftName} (${attachment.gap.draftPath}).`
+                : `The skill gap was recorded for future learning: ${attachment.gap.key}.`,
+          ].join('\n')
+        : ''
       return wrapMessagesInSystemReminder([
         createUserMessage({
-          content:
-            `Skills relevant to your task:\n\n${lines.join('\n')}\n\n` +
-            `These skills encode project-specific conventions. ` +
-            `Invoke via Skill("<name>") for complete instructions.`,
+          content: [
+            loadedSections.length > 0
+              ? `The following skills are auto-loaded for this task. Apply their instructions now; do not call Skill("<name>") again for these loaded skills.\n\n${loadedSections.join('\n\n')}`
+              : '',
+            recommendationLines.length > 0
+              ? `Additional relevant skills were found but not auto-loaded:\n\n${recommendationLines.join('\n')}\n\nInvoke via Skill("<name>") only if you need their complete instructions.`
+              : '',
+            gapText,
+          ]
+            .filter(Boolean)
+            .join('\n\n'),
           isMeta: true,
         }),
       ])
@@ -3570,7 +3594,6 @@ Read the team config to discover your teammates' names. Check the task list peri
   }
 
   // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check -- teammate_mailbox/team_context/skill_discovery/bagel_console handled above
-  // biome-ignore lint/nursery/useExhaustiveSwitchCases: teammate_mailbox/team_context/max_turns_reached/skill_discovery/bagel_console handled above, can't add case for dead code elimination
   switch (attachment.type) {
     case 'directory': {
       return wrapMessagesInSystemReminder([
